@@ -1,16 +1,16 @@
 #include "esp_camera.h"
 #include <ETH.h>
-#include <WiFi.h>  // 用于事件处理
+#include <WiFi.h>  // For event handling
 
-// 定义摄像头型号
+// Define the camera model being used
 #define CAMERA_MODEL_XIAO_ESP32S3  // Has PSRAM
 
-// 包含摄像头引脚定义
+// Include camera pin definitions
 #include "camera_pins.h"
 
 #define USE_TWO_ETH_PORTS 0
 
-// 以太网PHY和SPI引脚定义（根据硬件调整）
+// Ethernet PHY and SPI pin definitions (adjust according to your hardware)
 #ifndef ETH_PHY_CS
 #define ETH_PHY_TYPE ETH_PHY_W5500
 #define ETH_PHY_ADDR 1
@@ -23,10 +23,10 @@
 #define ETH_SPI_MISO D9
 #define ETH_SPI_MOSI D10
 
-// 全局变量，用于标记以太网连接状态
+// Global variable to track Ethernet connection status
 static bool eth_connected = false;
 
-// 函数声明
+// Function declarations
 void startCameraServer();
 void setupLedFlash(int pin);
 void onEvent(arduino_event_id_t event, arduino_event_info_t info);
@@ -34,12 +34,14 @@ void onEvent(arduino_event_id_t event, arduino_event_info_t info);
 void setup() {
   Serial.begin(115200);
   delay(2000);
+  // Register Ethernet event handler
   Network.onEvent(onEvent);
 
+  // Initialize SPI and Ethernet
   SPI.begin(ETH_SPI_SCK, ETH_SPI_MISO, ETH_SPI_MOSI, ETH_PHY_CS);
   ETH.begin(ETH_PHY_TYPE, ETH_PHY_ADDR, ETH_PHY_CS, ETH_PHY_IRQ, ETH_PHY_RST, SPI);
 
-  // 等待以太网连接
+  // Wait for Ethernet connection
   Serial.print("Waiting for Ethernet connection");
   while (!eth_connected) {
     delay(500);
@@ -52,7 +54,7 @@ void setup() {
   Serial.setDebugOutput(true);
   Serial.println();
 
-  // **摄像头配置**
+  // Camera configuration structure
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
@@ -74,13 +76,13 @@ void setup() {
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
   config.frame_size = FRAMESIZE_UXGA;
-  config.pixel_format = PIXFORMAT_JPEG;  // 用于流媒体
+  config.pixel_format = PIXFORMAT_JPEG;  // Use JPEG for streaming
   config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
   config.fb_location = CAMERA_FB_IN_PSRAM;
   config.jpeg_quality = 12;
   config.fb_count = 1;
 
-  // 根据PSRAM调整配置
+  // Adjust configuration based on PSRAM availability
   if (config.pixel_format == PIXFORMAT_JPEG) {
     if (psramFound()) {
       config.jpeg_quality = 10;
@@ -98,26 +100,27 @@ void setup() {
   }
 
 #if defined(CAMERA_MODEL_ESP_EYE)
+  // Special pin setup for ESP-EYE
   pinMode(13, INPUT_PULLUP);
   pinMode(14, INPUT_PULLUP);
 #endif
 
-  // 初始化摄像头
+  // Initialize the camera
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
     Serial.printf("Camera init failed with error 0x%x", err);
     return;
   }
 
-  // 调整传感器设置
+  // Adjust sensor settings for specific camera modules
   sensor_t *s = esp_camera_sensor_get();
   if (s->id.PID == OV3660_PID) {
-    s->set_vflip(s, 1);        // 垂直翻转
-    s->set_brightness(s, 1);   // 提高亮度
-    s->set_saturation(s, -2);  // 降低饱和度
+    s->set_vflip(s, 1);        // Vertical flip
+    s->set_brightness(s, 1);   // Increase brightness
+    s->set_saturation(s, -2);  // Decrease saturation
   }
   if (config.pixel_format == PIXFORMAT_JPEG) {
-    s->set_framesize(s, FRAMESIZE_QVGA);  // 降低初始帧率
+    s->set_framesize(s, FRAMESIZE_QVGA);  // Lower initial frame size
   }
 
 #if defined(CAMERA_MODEL_M5STACK_WIDE) || defined(CAMERA_MODEL_M5STACK_ESP32CAM)
@@ -129,23 +132,22 @@ void setup() {
   s->set_vflip(s, 1);
 #endif
 
-  // 设置LED闪光灯（如果定义了引脚）
+  // Setup LED flash if the pin is defined
 #if defined(LED_GPIO_NUM)
   setupLedFlash(LED_GPIO_NUM);
 #endif
 
-
-  // 启动摄像头服务器
+  // Start the camera web server
   startCameraServer();
 
-  // 打印访问地址
+  // Print the access URL to the serial monitor
   Serial.print("Camera Ready! Use 'http://");
   Serial.print(ETH.localIP());
   Serial.println("' to connect");
 }
 
 void loop() {
-  // 无需额外处理，摄像头服务器在另一个任务中运行
+  // No additional processing needed; camera server runs in another task
   delay(10000);
 }
 
