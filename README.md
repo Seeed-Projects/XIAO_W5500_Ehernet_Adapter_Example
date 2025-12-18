@@ -18,6 +18,7 @@ This repository provides three example projects demonstrating how to use the See
 - **ETH_SPI_SCK**: D8
 - **ETH_SPI_MISO**: D9
 - **ETH_SPI_MOSI**: D10
+- **ETH_INTn**: D16
 
 ### Camera Module Wiring (for XIAO ESP32S3)
 See `XIAO_PoE_CameraWebServer/camera_pins.h` for full pin mapping. Default mapping for XIAO ESP32S3:
